@@ -1,19 +1,6 @@
 name: Old Node.js Compatibility
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'api/**'
-      - '.github/workflows/backcompat.yml'
-  pull_request:
-    paths:
-      - 'api/**'
-      - '.github/workflows/backcompat.yml'
-  merge_group:
-    paths:
-      - 'api/**'
-      - '.github/workflows/backcompat.yml'
+  workflow_dispatch: {}
 
 permissions:
   contents: read

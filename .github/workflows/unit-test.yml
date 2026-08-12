@@ -1,16 +1,13 @@
 name: Unit Tests
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-  merge_group:
+  workflow_dispatch: {}
 
 permissions:
   contents: read
 
 jobs:
   node-tests:
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -43,15 +40,10 @@ jobs:
           matrix.node_version == '18' ||
           matrix.node_version == '20.6.0'
           }}
-      # Workaround: skip this install of npm@latest for Node.js v22 to
-      # workaround https://github.com/nodejs/node/issues/62425
-      # Npm@latest isn't typically *required*.
-      - run: npm install -g npm@latest
-        if: ${{
-          matrix.node_version == '20' ||
-          matrix.node_version == '24' ||
-          matrix.node_version == '25'
-          }}
+      # The upstream `npm install -g npm@latest` step is dropped: npm@latest is
+      # now npm@12, whose engines are {"node":"^22.22.2 || ^24.15.0 || >=26"},
+      # so it EBADENGINEs on the '20', '24' and '25' legs. The npm bundled with
+      # each Node is a 10.x/11.x that reads this lockfileVersion 3 fine.
 
       - name: Bootstrap
         run: npm ci --ignore-scripts
@@ -61,13 +53,23 @@ jobs:
 
       - run: npm test
 
-      - name: Report Coverage
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Pack @opentelemetry/core
+        if: ${{ matrix.node_version == '22' }}
+        run: |
+          mkdir -p ./seal-dist
+          npm pack --workspace=packages/opentelemetry-core --pack-destination=./seal-dist
+          mv ./seal-dist/opentelemetry-core-2.7.0.tgz ./seal-dist/core-2.7.0.tgz
+          ls -l ./seal-dist
+
+      - name: Upload @opentelemetry/core tarball
+        if: ${{ matrix.node_version == '22' }}
+        uses: actions/upload-artifact@v4
         with:
-          verbose: true
+          name: core-tgz
+          path: seal-dist/core-2.7.0.tgz
+          if-no-files-found: error
   node-windows-tests:
+    timeout-minutes: 45
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -80,7 +82,8 @@ jobs:
             package-lock.json
           node-version: "22.22.1" # pin to avoid bug in 22.22.2
 
-      - run: npm install -g npm@latest
+      # `npm install -g npm@latest` dropped: npm@12 requires node ^22.22.2, so
+      # it EBADENGINEs on this deliberate 22.22.1 pin.
 
       - name: Bootstrap
         run: npm ci --ignore-scripts
@@ -93,6 +96,7 @@ jobs:
       - name: Unit tests
         run: npm run test
   browser-tests:
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -113,13 +117,8 @@ jobs:
 
       - name: Unit tests
         run: npm run test:browser
-      - name: Report Coverage
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          verbose: true
   webworker-tests:
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -139,9 +138,3 @@ jobs:
 
       - name: Unit tests
         run: npm run test:webworker
-      - name: Report Coverage
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          verbose: true

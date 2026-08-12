@@ -1,8 +1,7 @@
 name: Survey on Merged PR by Non-Member
 
 on:
-  pull_request_target:
-    types: [closed]
+  workflow_dispatch: {}
 
 permissions:
   contents: read

@@ -1,7 +1,6 @@
 name: SBOM
 on:
-  release:
-    types: [published]
+  workflow_dispatch: {}
 
 permissions: read-all
 
